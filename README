@@ -1,0 +1,23 @@
+AI Phishing Detector
+
+AI Phishing Detector is a Java-based application designed to identify and prevent phishing attacks by analyzing URLs and other online content using machine learning algorithms. The project integrates cloud functionality (e.g., AWS) to provide scalable and real-time detection, allowing users to quickly check suspicious links and protect sensitive information.
+
+Features
+
+Detects phishing URLs using AI/ML models
+
+Cloud-enabled for scalable, real-time analysis
+
+Easy-to-use interface (can be integrated into web applications)
+
+Provides reports on suspicious links and their risk levels
+
+Tech Stack
+
+Language: Java
+
+Machine Learning: [e.g., Weka, TensorFlow, or your choice]
+
+Cloud Integration: AWS (S3, Lambda, etc.)
+
+Version Control: Git/GitHub
