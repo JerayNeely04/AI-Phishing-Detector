@@ -33,12 +33,15 @@ public class URLReader {
             System.out.println("URL is invalid!");
         }
 
-        String tempURL = "https://app.dataannotation.tech/workers/tasks/35e99021-7167-40be-b2c3-364aa4abf455?task_response_id=4bcea47e-363c-421e-99fa-7ead2aea68a5";
-        double[] features = FeatureExtractor.extractFeatures(url);
+
+        double[] features = com.phishingdetector.ai.FeatureExtractor.extractFeatures(url);
+        String phishingResults = com.phishingdetector.model.PhishingClassifier.classify(features); //based on conditions returns if safe or phishing
+
         System.out.println("Features:");
         for(double f : features) {
             System.out.println(f);
         }
+        System.out.println("Classification result: " + phishingResults);                        //prints out the results of link being safe or not
     }
 
     public static String fetchContent(String urlStr){
