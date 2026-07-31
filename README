@@ -1,23 +1,127 @@
-AI Phishing Detector
+# URL Phishing Scanner
 
-AI Phishing Detector is a Java-based application designed to identify and prevent phishing attacks by analyzing URLs and other online content using machine learning algorithms. The project integrates cloud functionality (e.g., AWS) to provide scalable and real-time detection, allowing users to quickly check suspicious links and protect sensitive information.
+A small Java command-line tool that inspects a URL, extracts structural features
+from it, and flags the link as likely phishing or likely safe using a set of
+heuristic rules.
 
-Features
+**Status:** working prototype. The classifier is rule-based, not a trained model.
+See [Limitations](#limitations) and [Roadmap](#roadmap) for what that means and
+where this is headed.
 
-Detects phishing URLs using AI/ML models
+---
 
-Cloud-enabled for scalable, real-time analysis
+## How it works
 
-Easy-to-use interface (can be integrated into web applications)
+The tool runs a URL through three stages:
 
-Provides reports on suspicious links and their risk levels
+```
+URLReader  ->  FeatureExtractor  ->  PhishingClassifier
+(validate & fetch)  (derive signals)   (apply rules)
+```
 
-Tech Stack
+**1. `URLReader` (`com.phishingdetector.scanner`)**
 
-Language: Java
+Validates that the input parses as a well-formed URL, then opens an
+`HttpURLConnection` and reads the response body into a string. Validation is done
+by round-tripping through `URL` and `URI`, which rejects malformed input and
+illegal characters.
 
-Machine Learning: [e.g., Weka, TensorFlow, or your choice]
+**2. `FeatureExtractor` (`com.phishingdetector.ai`)**
 
-Cloud Integration: AWS (S3, Lambda, etc.)
+Reduces the URL to four numeric features, chosen because each corresponds to a
+documented phishing pattern:
 
-Version Control: Git/GitHub
+| # | Feature | Signal it captures |
+|---|---------|--------------------|
+| 0 | Total URL length | Obfuscation through long, padded URLs |
+| 1 | Count of `@` | Userinfo trick — everything before `@` is ignored by the browser, so the real host is hidden |
+| 2 | Count of `-` | Hyphenated lookalike domains (`paypal-secure-login.com`) |
+| 3 | Suspicious keyword present | Contains `login`, `verify`, or `bank` |
+
+**3. `PhishingClassifier` (`com.phishingdetector.model`)**
+
+Applies a disjunctive rule: the URL is flagged as phishing if **any** of the
+following hold.
+
+| Condition | Threshold |
+|-----------|-----------|
+| `@` present | count > 0 |
+| Excessive hyphens | count > 3 |
+| Suspicious keyword | present |
+| Long URL | length > 75 |
+
+Otherwise it returns `Safe`. The thresholds are hand-tuned, not learned.
+
+---
+
+## Project structure
+
+```
+src/com/phishingdetector/
+├── scanner/URLReader.java           # validation, HTTP fetch, entry point
+├── ai/FeatureExtractor.java         # URL -> double[4]
+└── model/PhishingClassifier.java    # double[4] -> verdict
+```
+
+## Running it
+
+Requires JDK 8 or later.
+
+```bash
+javac -d out src/com/phishingdetector/**/*.java
+java -cp out com.phishingdetector.scanner.URLReader
+```
+
+Then enter a URL at the prompt.
+
+```
+Enter a URL:
+http://paypal-secure-login-verify.example.com/account
+URL is valid!
+HTML length: 4821
+Features:
+52.0
+0.0
+3.0
+1.0
+Classification result: Phishing link
+```
+
+---
+
+## Limitations
+
+Stated plainly, because they define what this is:
+
+- **The classifier is a rule engine, not a model.** No training data, no learned
+  weights, no measured precision or recall. Accuracy on real-world URLs is
+  currently unquantified.
+- **The fetched page content is not used in classification.** `fetchContent`
+  retrieves the HTML, but only its length is printed; the classifier sees the URL
+  string alone. Page-content features are the most valuable unused signal here.
+- **High false-positive rate by construction.** Any URL containing `login` is
+  flagged, which means most legitimate sign-in pages are marked as phishing.
+- **No connection timeout.** `HttpURLConnection` is used with default settings, so
+  an unresponsive host will hang the program.
+- **Single URL per run, interactive only.** There is no batch mode, no file input,
+  and no API surface.
+- **Feature extraction runs even when validation fails**, so an invalid URL still
+  produces a classification.
+
+## Roadmap
+
+Ordered by expected value:
+
+1. Add connection and read timeouts, and handle redirects explicitly.
+2. Gate classification behind successful validation.
+3. Build a labeled dataset (PhishTank, OpenPhish, and Tranco for benign URLs) and
+   report precision, recall, and F1 against a held-out split.
+4. Replace hand-tuned thresholds with a trained classifier — logistic regression
+   is a reasonable baseline before anything heavier.
+5. Use the fetched HTML: form actions posting off-domain, password fields on HTTP,
+   iframe count, favicon origin mismatch.
+6. Add batch mode reading URLs from a file, so throughput can actually be measured.
+
+## License
+
+Not currently licensed. Add one before reuse.
